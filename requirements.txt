@@ -1,6 +1,5 @@
 streamlit
 whisper
-torch
 pandas
 pydub
 pyannote.audio
