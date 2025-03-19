@@ -7,7 +7,7 @@ pyannote.audio
 huggingface-hub
 vaderSentiment
 spacy
-en-core-web-sm
+
 
 
 
