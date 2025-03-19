@@ -12,26 +12,3 @@ torch==2.2.0+cpu
 
 
 
-
-
-
-
-
-
-# coppy paste the above command in terminals 
-
-#if failed to install then open cmd in administrater mode then paste the code
-
-# To run the file , write in terminal " streamlit run app5.py" or " streamlit run app6.py"
-
-# donot run the file on desktop , just put into any drive then run the commands {For example file path = D:\company\Medhavi\project\voice website>  }
-
-
-# ---------------------------------whats challanges for me -----------------------------------
-# 1. Reduce processing Tme with accuracy  
-# 2. Make the code more efficient
-# 3. convert audio into hinglish format
-# 4. Best Model for complex data    
-
-#-----------------------My thought about this-----------------
-#when deploy in production may be the processing duration will reduce , {i have to check it on streamlit site } & will update soon. 
