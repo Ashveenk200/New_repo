@@ -7,6 +7,8 @@ import torch
 import pandas as pd
 from pydub import AudioSegment
 from pyannote.audio.pipelines import SpeakerDiarization
+from speechbrain.inference import SpeakerRecognition
+
 from huggingface_hub import login
 import concurrent.futures
 import json
