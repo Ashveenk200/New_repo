@@ -8,22 +8,32 @@ import pandas as pd
 from pydub import AudioSegment
 from pyannote.audio.pipelines import SpeakerDiarization
 from speechbrain.inference import SpeakerRecognition
-
 from huggingface_hub import login
 import concurrent.futures
 import json
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import spacy
+import subprocess
 import glob
 
-# Load SpaCy model for name extraction
-nlp = spacy.load("en_core_web_sm")
+# ========================== 1. Ensure SpaCy Model ==========================
+def ensure_spacy_model():
+    try:
+        nlp = spacy.load("en_core_web_sm")
+        return nlp
+    except OSError:
+        st.warning("SpaCy model not found. Downloading en_core_web_sm...")
+        subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
+        nlp = spacy.load("en_core_web_sm")
+        return nlp
 
-# ========================== 1. Authentication ==========================
+nlp = ensure_spacy_model()
+
+# ========================== 2. Authentication ==========================
 HF_TOKEN = "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"
 login(HF_TOKEN)
 
-# ========================== 2. Load Models ==========================
+# ========================== 3. Load Models ==========================
 @st.cache_resource
 def load_whisper_model():
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -46,26 +56,23 @@ def load_diarization_model():
 
 diarization_pipeline = load_diarization_model()
 
-# ========================== 3. Streamlit UI ==========================
-st.title("🎤 VM")
+# ========================== 4. Streamlit UI ==========================
+st.title("🎤 Voice Analysis with Sentiment & Diarization")
 option = st.radio("Choose an option:", ("Upload Multiple Files", "Select Folder"))
 
 uploaded_files = []
-
 if option == "Upload Multiple Files":
     uploaded_files = st.file_uploader("📂 Upload multiple audio files", type=["mp3", "wav", "m4a"], accept_multiple_files=True)
 elif option == "Select Folder":
     folder_path = st.text_input("📂 Enter folder path containing audio files")
-    if folder_path:
+    if folder_path and os.path.exists(folder_path):
         uploaded_files = [open(f, "rb") for f in glob.glob(os.path.join(folder_path, "*.wav"))]
 
-# Submit button
 if not uploaded_files:
     st.warning("Please upload files or select a folder.")
 else:
     if st.button("Submit"):
         data_records = []
-
         for file in uploaded_files:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
                 temp_audio_path = temp_audio.name
@@ -81,9 +88,9 @@ else:
             duration_min = duration_sec / 60
 
             st.audio(file, format=file.type)
-            st.write(f"🎵 **Processing {file.name} - Duration:** {int(duration_min)} min {int(duration_sec % 60)} sec")
+            st.write(f"🎵 Processing {file.name} - Duration: {int(duration_min)} min {int(duration_sec % 60)} sec")
 
-            st.write("🔄 **Transcribing and Identifying Speakers... Please wait.**")
+            st.write("🔄 Transcribing and Identifying Speakers... Please wait.")
             start_time = time.time()
 
             try:
@@ -137,27 +144,12 @@ else:
                         "interest": "Interested" if sentiment['pos'] > 30 and sentiment['neu'] < 60 else "Not Interested" if sentiment['pos'] < 25 and sentiment['neu'] > 70 else "Moderately Interested"
                     }
 
-                end_time = time.time()
-                processing_time = round((end_time - start_time) / 60, 2)
-
-                record = [
-                    len(data_records) + 1, file.name, " ".join(speaker_transcriptions.get("Speaker 1", [])),
-                    " ".join(speaker_transcriptions.get("Speaker 2", [])), time.strftime('%H:%M:%S', time.localtime(start_time)),
-                    time.strftime('%H:%M:%S', time.localtime(end_time)), round(duration_min, 2), processing_time,
-                    sentiment_results.get("Speaker 1", {}).get("pos", "-"),
-                    sentiment_results.get("Speaker 1", {}).get("neu", "-"),
-                    sentiment_results.get("Speaker 1", {}).get("engagement", "-"),
-                    sentiment_results.get("Speaker 2", {}).get("pos", "-"),
-                    sentiment_results.get("Speaker 2", {}).get("neu", "-"),
-                    sentiment_results.get("Speaker 2", {}).get("engagement", "-"),
-                    sentiment_results.get("Speaker 1", {}).get("interest", "-")
-                ]
-                data_records.append(record)
-
-                # Display DataFrame Incrementally
-                df = pd.DataFrame(data_records, columns=["Sno.", "File Name", "Person 1 Chat", "Person 2 Chat", "Time Start", "Time End", "Audio Duration (min)", "Total Processing Time (min)", "Person 1 Positive Score", "Person 1 Neutral Score", "Person 1 Engagement Score", "Person 2 Positive Score", "Person 2 Neutral Score", "Person 2 Engagement Score", "Interest Level"])
+                # Display DataFrame
+                df = pd.DataFrame.from_dict(sentiment_results, orient='index')
+                st.write("### Sentiment Analysis Results")
                 st.dataframe(df)
 
             except Exception as e:
                 st.error(f"Error during processing {file.name}: {str(e)}")
-            os.remove(temp_audio_path)
+            finally:
+                os.remove(temp_audio_path)
