@@ -7,7 +7,11 @@ huggingface-hub
 vaderSentiment
 spacy
 torch==2.2.0+cpu
-torchaudio==2.2.0+cpu
+
+
+
+
+
 
 
 
